@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>세입자보증금 대항력 계산기</title>
+  <style>
+    body { font-family: Arial; padding: 20px; }
+    table, th, td {
+      border: 1px solid gray;
+      border-collapse: collapse;
+      padding: 5px;
+    }
+    th { background-color: #ddd; }
+    td input { width: 100%; box-sizing: border-box; }
+    .highlight { background-color: yellow; font-weight: bold; margin-top: 10px; }
+    button { margin-right: 5px; }
+  </style>
+</head>
+<body>
+  <h2>근저당에 관한 내용</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>근저당권자명</th>
+        <th>근저당금액</th>
+        <th>근저당설정일자</th>
+      </tr>
+    </thead>
+    <tbody id="mortgageTable">
+      <tr>
+        <td><input type="text" class="mortgageHolder"></td>
+        <td><input type="text" class="mortgageAmount" style="width:120px;" oninput="enforceNumberOnly(this); formatCurrency(this)">&nbsp;원</td>
+        <td><input type="text" class="mortgageDate" style="width:120px;" oninput="formatDateYYYYMMDD(this)"></td>
+      </tr>
+    </tbody>
+  </table>
+  <div style="margin-top: 10px;">
+    <button id="addMortgage">근저당 행 추가</button>
+    <button id="removeMortgage">근저당 행 삭제</button>
+  </div>
+
+  <h2>가압류에 관한 내용</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>가압류권자</th>
+        <th>가압류금액</th>
+        <th>가압류접수일자</th>
+      </tr>
+    </thead>
+    <tbody id="provisionalTable">
+      <tr>
+        <td><input type="text" class="provisionalHolder"></td>
+        <td><input type="text" class="provisionalAmount" style="width:120px;" oninput="enforceNumberOnly(this); formatCurrency(this)">&nbsp;원</td>
+        <td><input type="text" class="provisionalDate" style="width:120px;" oninput="formatDateYYYYMMDD(this)"></td>
+      </tr>
+    </tbody>
+  </table>
+  <div style="margin-top: 10px;">
+    <button id="addProvisional">가압류 행 추가</button>
+    <button id="removeProvisional">가압류 행 삭제</button>
+  </div>
+
+  <h2>세입자에 관한 내용</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>호실명</th>
+        <th>임차인명</th>
+        <th>확정일자</th>
+        <th>전입신고일자</th>
+        <th>점유일자</th>
+        <th>보증금</th>
+      </tr>
+    </thead>
+    <tbody id="tenantTable">
+      <tr>
+        <td><input type="text" class="room" style="width:120px;"></td>
+        <td><input type="text" class="name" style="width:120px;"></td>
+        <td><input type="text" class="confirm" style="width:120px;" oninput="formatDateYYYYMMDD(this)"></td>
+        <td><input type="text" class="entry" style="width:120px;" oninput="formatDateYYYYMMDD(this)"></td>
+        <td><input type="text" class="movein" style="width:120px;" oninput="formatDateYYYYMMDD(this)"></td>
+        <td><input type="text" class="deposit" style="width:120px;" oninput="enforceNumberOnly(this); formatCurrency(this)">&nbsp;원</td>
+      </tr>
+    </tbody>
+  </table>
+  <div style="margin-top: 10px;">
+    <button id="addTenant">세입자 행 추가</button>
+    <button id="removeTenant">세입자 행 삭제</button>
+    <button onclick="calculate()" class="highlight">계산하기</button>
+  </div>
+
+  <h2>예상낙찰금액</h2>
+  <input type="text" id="expectedAuctionPrice" oninput="enforceNumberOnly(this); formatCurrency(this)" style="width:200px;">&nbsp;원
+
+  <div id="resultTable" style="margin-top: 30px;"></div>
+
+  <script>
+    document.getElementById('addMortgage').onclick = function () {
+      const table = document.getElementById('mortgageTable');
+      const newRow = table.rows[0].cloneNode(true);
+      newRow.querySelectorAll('input').forEach(input => input.value = '');
+      table.appendChild(newRow);
+    };
+    document.getElementById('removeMortgage').onclick = function () {
+      const table = document.getElementById('mortgageTable');
+      if (table.rows.length > 1) table.deleteRow(table.rows.length - 1);
+    };
+    document.getElementById('addProvisional').onclick = function () {
+      const table = document.getElementById('provisionalTable');
+      const newRow = table.rows[0].cloneNode(true);
+      newRow.querySelectorAll('input').forEach(input => input.value = '');
+      table.appendChild(newRow);
+    };
+    document.getElementById('removeProvisional').onclick = function () {
+      const table = document.getElementById('provisionalTable');
+      if (table.rows.length > 1) table.deleteRow(table.rows.length - 1);
+    };
+    document.getElementById('addTenant').onclick = function () {
+      const table = document.getElementById('tenantTable');
+      const newRow = table.rows[0].cloneNode(true);
+      newRow.querySelectorAll('input').forEach(input => input.value = '');
+      table.appendChild(newRow);
+    };
+    document.getElementById('removeTenant').onclick = function () {
+      const table = document.getElementById('tenantTable');
+      if (table.rows.length > 1) table.deleteRow(table.rows.length - 1);
+    };
+
+    function enforceNumberOnly(input) {
+      input.value = input.value.replace(/[^\d]/g, '');
+    }
+    function formatCurrency(input) {
+      const value = input.value.replace(/[^\d]/g, '');
+      if (!value) return input.value = '';
+      input.value = Number(value).toLocaleString();
+    }
+    function formatDateYYYYMMDD(input) {
+      let value = input.value.replace(/[^\d]/g, '');
+      if (value.length === 8) {
+        const year = value.slice(0, 4);
+        const month = value.slice(4, 6);
+        const day = value.slice(6, 8);
+        input.value = `${year}-${month}-${day}`;
+      }
+    }
+
+    function calculate() {
+      const mortgageRows = document.querySelectorAll('#mortgageTable tr');
+      const provisionalRows = document.querySelectorAll('#provisionalTable tr');
+      const tenantRows = document.querySelectorAll('#tenantTable tr');
+      let data = [];
+
+      mortgageRows.forEach(row => {
+        const name = row.querySelector('.mortgageHolder')?.value || '';
+        const amount = row.querySelector('.mortgageAmount')?.value || '';
+        const dateStr = row.querySelector('.mortgageDate')?.value || '';
+        const date = new Date(dateStr);
+        if (!isNaN(date)) {
+          data.push({ name, amount, date, label: '근저당' });
+        }
+      });
+
+      provisionalRows.forEach(row => {
+        const name = row.querySelector('.provisionalHolder')?.value || '';
+        const amount = row.querySelector('.provisionalAmount')?.value || '';
+        const dateStr = row.querySelector('.provisionalDate')?.value || '';
+        const date = new Date(dateStr);
+        if (!isNaN(date)) {
+          data.push({ name, amount, date, label: '가압류' });
+        }
+      });
+
+      tenantRows.forEach(row => {
+        const room = row.querySelector('.room')?.value || '';
+        const name = row.querySelector('.name')?.value || '';
+        const confirm = new Date(row.querySelector('.confirm')?.value || '');
+        const entry = new Date(row.querySelector('.entry')?.value || '');
+        const movein = new Date(row.querySelector('.movein')?.value || '');
+        const deposit = row.querySelector('.deposit')?.value || '';
+        if (!isNaN(confirm) && !isNaN(entry) && !isNaN(movein)) {
+          const latest = new Date(Math.max(confirm, entry, movein));
+          latest.setDate(latest.getDate() + 1);
+          data.push({ name: `${name}(${room})`, amount: deposit, date: latest, label: '세입자' });
+        }
+      });
+
+      data.sort((a, b) => a.date - b.date);
+
+      let remaining = Number(document.getElementById('expectedAuctionPrice').value.replace(/[^\d]/g, '')) || 0;
+      let tempRemaining = remaining;
+
+      const result = data.map((item, i) => {
+        const cleanAmount = Number((item.amount || '').toString().replace(/[^\d]/g, '')) || 0;
+        const 최우선변제금액 = 0;
+        const 우선변제금액 = Math.min(tempRemaining, cleanAmount);
+        const 예상배당금액 = Math.min(cleanAmount, 최우선변제금액 + 우선변제금액);
+        tempRemaining -= 우선변제금액;
+        const 배당후잔액 = tempRemaining;
+
+        return {
+          ...item,
+          rank: i + 1,
+          최우선변제금액,
+          우선변제금액,
+          예상배당금액,
+          배당후잔액
+        };
+      });
+
+      const html = `
+        <table>
+          <thead>
+            <tr>
+              <th>권리자</th>
+              <th>금액</th>
+              <th>대항력발생일자</th>
+              <th>순위</th>
+              <th>최우선변제금액</th>
+              <th>우선변제금액</th>
+              <th>예상배당금액</th>
+              <th>배당후 잔액</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${result.map(r => `
+              <tr>
+                <td>${r.name}</td>
+                <td>${Number(r.amount.replace(/[^\d]/g, '')).toLocaleString()} 원</td>
+                <td>${r.date.toISOString().slice(0, 10)}</td>
+                <td>${r.rank}</td>
+                <td><input type='text' style='width:120px;' value='${r.최우선변제금액.toLocaleString()}' readonly>&nbsp;원</td>
+                <td><input type='text' style='width:120px;' value='${r.우선변제금액.toLocaleString()}' readonly>&nbsp;원</td>
+                <td><input type='text' style='width:120px;' value='${r.예상배당금액.toLocaleString()}' readonly>&nbsp;원</td>
+                <td><input type='text' style='width:120px;' value='${r.배당후잔액.toLocaleString()}' readonly>&nbsp;원</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+
+      document.getElementById('resultTable').innerHTML = html;
+    }
+  </script>
+</body>
+</html>
