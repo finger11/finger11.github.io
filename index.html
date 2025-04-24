@@ -6,6 +6,7 @@
   <style>
     body { font-family: sans-serif; max-width: 600px; margin: 40px auto; padding: 20px; }
     label, input, select, button { display: block; width: 100%; margin: 10px 0; padding: 10px; }
+    input[type=number] { text-align: right; }
     button { background-color: #007BFF; color: white; border: none; cursor: pointer; }
     button:hover { background-color: #0056b3; }
     #result { margin-top: 20px; font-weight: bold; color: green; text-align: center; }
@@ -19,7 +20,7 @@
     </select>
   </label>
   <label>근저당 설정일자: <input id="date" type="date" /></label>
-  <label>보증금 (원): <input id="deposit" type="number" /></label>
+  <label>보증금 (원): <input id="deposit" type="text" inputmode="numeric" placeholder="예: 60,000,000" /></label>
   <button id="calculateBtn">계산하기</button>
   <div id="result"></div>
 
@@ -34,12 +35,20 @@
         option.textContent = 지역;
         지역선택.appendChild(option);
       });
+
+      // 천단위 구분기호 자동 포맷팅
+      const depositInput = document.getElementById("deposit");
+      depositInput.addEventListener("input", function(e) {
+        const val = e.target.value.replace(/[^\d]/g, "");
+        e.target.value = Number(val).toLocaleString();
+      });
     });
 
     document.getElementById("calculateBtn").addEventListener("click", function() {
       const region = document.getElementById("region").value;
       const date = document.getElementById("date").value;
-      const deposit = parseInt(document.getElementById("deposit").value);
+      const rawDeposit = document.getElementById("deposit").value.replace(/,/g, "");
+      const deposit = parseInt(rawDeposit);
 
       if (!region || !date || isNaN(deposit)) {
         document.getElementById("result").innerText = "모든 값을 올바르게 입력해주세요.";
